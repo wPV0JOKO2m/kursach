@@ -1,0 +1,13 @@
+{
+    "name": "admin-server",
+    "version": "1.0.0",
+    "main": "main.js",
+    "scripts": {
+      "start": "electron ."
+    },
+    "dependencies": {
+      "electron": "^25.0.0",
+      "socket.io": "^4.5.0"
+    }
+  }
+  
