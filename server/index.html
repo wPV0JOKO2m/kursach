@@ -9,15 +9,19 @@
 <body>
   <div id="sidebar">
     <h1>Users</h1>
-    <div id="user-panel"></div>
+    <div id="user-panel">
+    
+     
+    </div>
   </div>
   <div id="main">
     <h2>Stream</h2>
     <div id="stream-container">
-      <img id="stream" alt="Live Stream" />
+      <img id="stream" alt="Live Stream" onerror="this.style.display='none';"/>
       <div id="loading">Loading...</div>
     </div>
   </div>
+  <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

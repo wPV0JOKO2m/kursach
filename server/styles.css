@@ -1,4 +1,3 @@
-/* Root Variables for Theme Consistency */
 :root {
   --background-color: #121212;
   --sidebar-color: #1e1e1e;
@@ -9,9 +8,9 @@
   --hover-color: #333333;
   --transition-speed: 0.3s;
   --font-family: 'Montserrat', sans-serif;
+  --border-radius: 6px;
 }
 
-/* Global Styles */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -22,22 +21,16 @@ body {
   font-family: var(--font-family);
   display: flex;
   height: 100vh;
-  margin: 0;
   background-color: var(--background-color);
   color: var(--text-color);
   transition: background-color var(--transition-speed), color var(--transition-speed);
-  user-select: none; /* Non-standard syntax for some browsers */
-  -webkit-user-select: none; /* Safari */
-  -moz-user-select: none; /* Firefox */
-  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none;
 }
 
-/* Sidebar Styling */
 #sidebar {
   width: 250px;
   background-color: var(--sidebar-color);
   padding: 20px;
-  box-sizing: border-box;
   overflow-y: auto;
   border-right: 1px solid var(--border-color);
   transition: background-color var(--transition-speed);
@@ -49,35 +42,102 @@ body {
   color: var(--accent-color);
 }
 
-#users {
-  list-style-type: none;
+#user-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-#users li {
-  padding: 12px 16px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--border-color);
-  transition: background-color var(--transition-speed), color var(--transition-speed);
-  border-radius: 4px;
-  margin-bottom: 4px;
-}
-
-#users li:hover {
-  background-color: var(--hover-color);
-  color: var(--accent-color);
-}
-
-/* Placeholder for no users */
 #no-connections {
   color: #888;
   font-style: italic;
 }
 
-/* Main Content Styling */
+.user-item {
+  padding: 10px;
+  background-color: var(--sidebar-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform var(--transition-speed);
+}
+
+.user-item:hover {
+  transform: scale(1.02);
+}
+
+.user-name {
+  font-size: 18px;
+  margin-bottom: 8px;
+  color: var(--accent-color);
+}
+
+.user-preview {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  margin-bottom: 8px;
+  object-fit: cover;
+}
+
+.monitor-selector {
+  width: 100%;
+  padding: 6px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--main-background);
+  color: var(--text-color);
+}
+
+.full-screen-button {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #bb86fc, #9a67ea);
+  border: none;
+  border-radius: var(--border-radius);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.full-screen-button:hover {
+  background: linear-gradient(135deg, #9a67ea, #bb86fc);
+  transform: scale(1.05);
+}
+
+.full-screen-button:active {
+  transform: scale(0.98);
+}
+
+.disconnect-button {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #2e2e2e, #3a3a3e);
+  border: 2px solid #ff6b6b;
+  border-radius: var(--border-radius);
+  color: #ff6b6b;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease, border-color 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  margin-top: 10px;
+}
+
+.disconnect-button:hover {
+  background: linear-gradient(135deg, #3a3a3e, #2e2e2e);
+  transform: scale(1.05);
+  border-color: #ff4757;
+}
+
+.disconnect-button:active {
+  transform: scale(0.98);
+}
+
 #main {
   flex: 1;
   padding: 20px;
-  box-sizing: border-box;
   background-color: var(--main-background);
   overflow-y: auto;
   transition: background-color var(--transition-speed);
@@ -89,7 +149,6 @@ body {
   color: var(--accent-color);
 }
 
-/* Stream Container Styling */
 #stream-container {
   position: relative;
   width: 100%;
@@ -105,42 +164,11 @@ body {
 
 #stream {
   width: 100%;
-  height: auto;
-  display: none; /* Hidden by default */
+  display: none;
   border: none;
 }
 
 #loading {
   color: var(--accent-color);
   font-size: 18px;
-}
-
-#stream-container.loading #loading {
-  display: block;
-}
-
-#stream-container #error {
-  color: #f44336;
-  font-size: 18px;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  body {
-    flex-direction: column;
-  }
-
-  #sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  #main {
-    padding: 15px;
-  }
-
-  #sidebar h1, #main h2 {
-    font-size: 20px;
-  }
 }

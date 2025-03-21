@@ -1,74 +1,62 @@
-// импортируем необходимые модули из Electron
-const { app, BrowserWindow, ipcMain } = require('electron');
-//  для работы с путями файловой системы
+const { app, BrowserWindow } = require('electron');
 const path = require('path');
-//  для создания HTTP сервера
-const http = require('http');
-//  Socket.io для работы с веб-сокетами
-const socketIO = require('socket.io');
+const socketIo = require('socket.io');
+
+const WINDOW_WIDTH = 1200;
+const WINDOW_HEIGHT = 800;
+const PRELOAD_PATH = path.join(__dirname, 'preload.js');
+const INDEX_HTML = 'index.html';
+const SOCKET_SERVER_PORT = 3000;
 
 let mainWindow;
+const sockets = {};
 
-const server = http.createServer();
-// инициализируем Socket.io с настройками CORS
-const io = socketIO(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
-
-// функция для создания основного окна приложения
-function createWindow () {
+function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: WINDOW_WIDTH,
+    height: WINDOW_HEIGHT,
     webPreferences: {
-      // указываем путь к preload скрипту
-      preload: path.join(__dirname, 'preload.js'),
-      // отключаем интеграцию с Node.js для безопасности
-      nodeIntegration: false,
-      // включаем изоляцию контекста для безопасности
-      contextIsolation: true
+      nodeIntegration: true,
+      contextIsolation: false,
+      preload: PRELOAD_PATH
+    }
+  });
+  mainWindow.loadFile(INDEX_HTML);
+}
+
+app.whenReady().then(createWindow);
+
+const io = socketIo(SOCKET_SERVER_PORT);
+
+io.on('connection', (socket) => {
+  sockets[socket.id] = socket;
+  
+  socket.on('register', (data) => {
+    socket.username = data.username;
+    io.emit('user-registered', { id: socket.id, username: data.username });
+  });
+
+  socket.on('displays', (data) => {
+    io.emit('user-registered', { id: socket.id, displays: data.displays });
+  });
+
+  socket.on('preview-stream', (data) => {
+    io.emit('preview-stream', { id: socket.id, image: data.image });
+  });
+
+  socket.on('full-stream', (data) => {
+    io.emit('full-stream', { id: socket.id, image: data.image, monitor: data.monitor });
+  });
+
+  socket.on('request-fullscreen', (data) => {
+    const targetSocket = sockets[data.id];
+    if (targetSocket) {
+      targetSocket.emit('switch-monitor', { monitor: data.monitor });
     }
   });
 
-  // загружаем файл index.html в окно
-  mainWindow.loadFile('index.html');
-}
-
-// когда приложение готово, создаем окно и запускаем сервер
-app.whenReady().then(() => {
-  createWindow();
-  // запускаем HTTP сервер на порту 3000
-  server.listen(3000, () => {
-    console.log('Socket.io server listening on port 3000');
-  });
-});
-
-// обработчик события подключения нового клиента через Socket.io
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-  // отправляем событие о подключении пользователя в рендеринг процесс
-  mainWindow.webContents.send('user-connected', socket.id);
-
-  // обработчик получения данных стрима от клиента
-  socket.on('stream', (data) => {
-    // data является бинарным буфером
-    // отправляем данные стрима в рендеринг процесс с идентификатором пользователя
-    mainWindow.webContents.send('stream-data', { id: socket.id, data });
-  });
-
-  // обработчик события отключения клиента
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-    // отправляем событие об отключении пользователя в рендеринг процесс
-    mainWindow.webContents.send('user-disconnected', socket.id);
+    io.emit('user-disconnected', { id: socket.id });
+    delete sockets[socket.id];
   });
-});
-
-// обработчик запроса на стрим из рендеринг процесса
-ipcMain.on('request-stream', (event, userId) => {
-  // отправляем событие 'start-stream' конкретному клиенту по его ID
-  io.to(userId).emit('start-stream');
 });

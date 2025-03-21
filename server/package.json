@@ -3,11 +3,11 @@
     "version": "1.0.0",
     "main": "main.js",
     "scripts": {
-      "start": "electron ."
+        "start": "electron ."
     },
     "dependencies": {
-      "electron": "^25.0.0",
-      "socket.io": "^4.5.0"
+        "electron": "^25.9.8",
+        "fs-extra": "^11.3.0",
+        "socket.io": "^4.5.0"
     }
-  }
-  
+}
