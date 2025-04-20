@@ -11,11 +11,13 @@
   --border-radius: 6px;
 }
 
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
+
 
 body {
   font-family: var(--font-family);
@@ -26,6 +28,7 @@ body {
   transition: background-color var(--transition-speed), color var(--transition-speed);
   user-select: none;
 }
+
 
 #sidebar {
   width: 250px;
@@ -52,6 +55,7 @@ body {
   color: #888;
   font-style: italic;
 }
+
 
 .user-item {
   padding: 10px;
@@ -91,6 +95,7 @@ body {
   color: var(--text-color);
 }
 
+
 .full-screen-button {
   padding: 12px 20px;
   background: linear-gradient(135deg, #bb86fc, #9a67ea);
@@ -112,28 +117,54 @@ body {
   transform: scale(0.98);
 }
 
+.reset-button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 8px 16px;
+  background-color: var(--hover-color);
+  border: none;
+  border-radius: var(--border-radius);
+  color: var(--accent-color);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--transition-speed), transform 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+}
+
+.reset-button:hover {
+  background-color: var(--accent-color);
+  color: var(--background-color);
+  transform: scale(1.05);
+}
+
+.reset-button:active {
+  transform: scale(0.98);
+}
+
 .disconnect-button {
   padding: 12px 20px;
-  background: linear-gradient(135deg, #2e2e2e, #3a3a3e);
-  border: 2px solid #ff6b6b;
+  background: linear-gradient(135deg, #ff5252, #ff1744);
+  border: none;
   border-radius: var(--border-radius);
-  color: #ff6b6b;
+  color: #fff;
   font-size: 16px;
   cursor: pointer;
-  transition: background 0.3s ease, transform 0.2s ease, border-color 0.3s ease;
+  transition: background 0.3s ease, transform 0.2s ease;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
   margin-top: 10px;
 }
 
 .disconnect-button:hover {
-  background: linear-gradient(135deg, #3a3a3e, #2e2e2e);
+  background: linear-gradient(135deg, #ff1744, #ff5252);
   transform: scale(1.05);
-  border-color: #ff4757;
 }
 
 .disconnect-button:active {
   transform: scale(0.98);
 }
+
 
 #main {
   flex: 1;
@@ -148,6 +179,7 @@ body {
   margin-bottom: 20px;
   color: var(--accent-color);
 }
+
 
 #stream-container {
   position: relative;

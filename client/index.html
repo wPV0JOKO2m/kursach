@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Screen Client</title>
+  <!-- Montserrat font -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    html, body {
+      overflow: hidden;
+      background: transparent;
+      -webkit-app-region: no-drag;
+      width:100%; height:100%;
+    }
+    #container {
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      width:100%; height:100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <!-- CONNECT -->
+    <div id="connect-panel">
+      <div id="sidebar">
+        <h1>Connect</h1>
+        <form id="connect-form">
+          <label>IP Address:
+            <input type="text" id="ip-input"
+                   required>
+          </label>
+          <label>Port:
+            <input type="number" id="port-input" min="1" max="65535" required>
+          </label>
+          <label>Nickname:
+            <input type="text" id="nickname-input" pattern="^[A-Za-z0-9]+$" required>
+          </label>
+          <button type="submit" class="full-screen-button">Connect</button>
+        </form>
+        <div id="error-msg"></div>
+      </div>
+    </div>
+
+    <!-- STATUS -->
+    <div id="status-panel" style="display:none;">
+      <div id="sidebar">
+        <h1>Status</h1>
+        <p>Connection: <span id="conn-state">…</span></p>
+        <p>Monitor:    <span id="monitor">…</span></p>
+        <button id="disconnect-btn" class="disconnect-button">Quit</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { startClient, resizeWindow, getStatus, quitApp } = window.api;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const cp    = document.getElementById('connect-panel');
+      const sp    = document.getElementById('status-panel');
+      const sidebarEls = document.querySelectorAll('#sidebar');
+      const form  = document.getElementById('connect-form');
+      const ipIn  = document.getElementById('ip-input');
+      const portIn= document.getElementById('port-input');
+      const nickIn= document.getElementById('nickname-input');
+      const err   = document.getElementById('error-msg');
+      const state = document.getElementById('conn-state');
+      const mon   = document.getElementById('monitor');
+      const quitB = document.getElementById('disconnect-btn');
+
+      function measureAndResize() {
+        for (let sb of sidebarEls) {
+          if (window.getComputedStyle(sb.parentElement).display !== 'none') {
+            const { width, height } = sb.getBoundingClientRect();
+            resizeWindow({ width: Math.ceil(width), height: Math.ceil(height) });
+            break;
+          }
+        }
+      }
+
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        err.style.display = 'none';
+        if (!ipIn.checkValidity())   return showError('Invalid IP');
+        if (!portIn.checkValidity()) return showError('Invalid port');
+        if (!nickIn.checkValidity()) return showError('Invalid nick');
+
+        startClient({ ip: ipIn.value, port: portIn.value, nickname: nickIn.value });
+        cp.style.display = 'none';
+        sp.style.display = 'block';
+        requestAnimationFrame(measureAndResize);
+      });
+
+      function showError(msg) {
+        err.textContent = msg;
+        err.style.display = 'block';
+      }
+
+      async function updateStatus() {
+        const s = await getStatus();
+        state.textContent = s.connected ? 'Connected' : 'Disconnected';
+        mon.textContent   = s.monitor + 1;
+      }
+
+      quitB.addEventListener('click', () => quitApp());
+      setInterval(updateStatus, 1000);
+
+      // initial sizing
+      requestAnimationFrame(measureAndResize);
+    });
+  </script>
+</body>
+</html>

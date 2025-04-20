@@ -1,0 +1,138 @@
+:root {
+    --background-color: #121212;
+    --sidebar-color:    #1e1e1e;
+    --text-color:       #e0e0e0;
+    --accent-color:     #bb86fc;
+    --error-color:      #ff6b6b;
+    --border-color:     #333333;
+    --transition-speed: 0.3s;
+    --font-family:      'Montserrat', sans-serif;
+    --border-radius:    6px;
+  }
+  
+  * {
+    box-sizing:border-box;
+    margin:0; padding:0;
+  }
+  
+  body {
+    font-family: var(--font-family);
+    color: var(--text-color);
+    user-select: none;
+  }
+  
+  html, body {
+    overflow:hidden;
+    background:transparent;
+    -webkit-app-region: no-drag;
+    width:100%; height:100%;
+  }
+  
+  #container {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:100%; height:100%;
+  }
+  
+  #sidebar {
+    background-color: var(--sidebar-color);
+    padding:24px;
+    border-radius: var(--border-radius);
+    -webkit-app-region: drag;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+  }
+  
+  #sidebar h1 {
+    font-size:1.8rem;
+    font-weight:600;
+    margin-bottom:20px;
+    color: var(--accent-color);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  }
+  
+  label {
+    display:block;
+    font-size:0.9rem;
+    font-weight:500;
+    margin-bottom:6px;
+    -webkit-app-region: no-drag;
+  }
+  
+  input {
+    width:100%;
+    padding:10px;
+    margin-bottom:16px;
+    background: var(--background-color);
+    color: var(--text-color);
+    border:1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size:1rem;
+    transition:border var(--transition-speed);
+    -webkit-app-region: no-drag;
+  }
+  
+  input:focus {
+    border-color: var(--accent-color);
+    outline:none;
+  }
+  
+  .full-screen-button,
+  .disconnect-button {
+    width:100%;
+    padding:12px;
+    margin-top:12px;
+    border:none;
+    border-radius: var(--border-radius);
+    font-size:1rem;
+    font-weight:600;
+    cursor:pointer;
+    transition:background var(--transition-speed),transform .2s;
+    -webkit-app-region: no-drag;
+  }
+  
+  .full-screen-button {
+    background: linear-gradient(135deg, #bb86fc, #9a67ea);
+    color:#fff;
+  }
+  .full-screen-button:hover {
+    background: linear-gradient(135deg, #9a67ea, #bb86fc);
+    transform:scale(1.03);
+  }
+  .full-screen-button:active {
+    transform:scale(0.98);
+  }
+  
+  .disconnect-button {
+    background: linear-gradient(135deg, #ff5252, #ff1744);
+    color:#fff;
+  }
+  .disconnect-button:hover {
+    transform:scale(1.03);
+  }
+  .disconnect-button:active {
+    transform:scale(0.98);
+  }
+  
+  #sidebar p {
+    font-size:0.95rem;
+    margin:8px 0;
+    -webkit-app-region: no-drag;
+  }
+  #conn-state, #monitor {
+    font-weight:600;
+    color: var(--accent-color);
+  }
+  
+  #error-msg {
+    font-size:0.9rem;
+    color: var(--error-color);
+    margin-top:8px;
+    display:none;
+    -webkit-app-region: no-drag;
+  }
+  
+  ::-webkit-scrollbar {
+    width:0; height:0;
+  }
+  

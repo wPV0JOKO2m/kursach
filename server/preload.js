@@ -1,3 +1,6 @@
+/**
+ * exposes ipc functions for user and stream events and allows sending monitor and fullscreen commands
+ */
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
