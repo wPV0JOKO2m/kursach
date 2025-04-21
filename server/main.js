@@ -1,11 +1,3 @@
-/**
- * main.js
- *
- * initializes Electron app, sets up HTTP and Socket.IO server,
- * tracks capture clients and UI sockets with heartbeat monitoring,
- * and proxies events between capture clients and UI windows.
- */
-
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const http = require('http');
@@ -36,6 +28,9 @@ const WINDOW_HEIGHT = 800;
 const PRELOAD_PATH = path.join(__dirname, 'preload.js');
 const INDEX_HTML = 'index.html';
 const SERVER_PORT = 3000;
+
+// registration timeout (ms)
+const REGISTRATION_TIMEOUT = 10000;
 
 // state containers
 let mainWindow;
@@ -79,8 +74,17 @@ app.whenReady().then(() => {
     const sockLog = logger.child({ socketId: socket.id });
     sockLog.info('socket.io connection established');
 
-    // default: treat as UI socket until 'register' as capture
+    // mark unregistered until `register` is called
+    socket.isRegistered = false;
     uiSockets[socket.id] = socket;
+
+    // prompt to register if not done within timeout
+    setTimeout(() => {
+      if (!socket.isRegistered) {
+        sockLog.warn('registration timeout, asking to register');
+        socket.emit('request-register');
+      }
+    }, REGISTRATION_TIMEOUT);
 
     // inform new UI socket of existing capture clients
     Object.values(captureClients).forEach((client) => {
@@ -95,6 +99,7 @@ app.whenReady().then(() => {
      * register a capture client (screen share provider)
      */
     socket.on('register', (data) => {
+      socket.isRegistered = true;
       const id = socket.id;
       delete uiSockets[id];
       captureClients[id] = {
@@ -113,14 +118,23 @@ app.whenReady().then(() => {
       Object.values(uiSockets).forEach((s) => s.emit('user-registered', payload));
     });
 
+    // utility to ask re-register for misdirected events
+    function ensureRegistered(eventName) {
+      if (!socket.isRegistered) {
+        sockLog.warn(`${eventName} received before registration, asking to re-register`);
+        socket.emit('request-register');
+        return false;
+      }
+      return true;
+    }
+
     /**
      * update display info for a capture client
      */
     socket.on('displays', (data) => {
+      if (!ensureRegistered('displays')) return;
       const id = socket.id;
       const client = captureClients[id];
-      if (!client) return;
-
       client.displays = data.displays;
       sockLog.info('displays updated', { displays: data.displays });
 
@@ -133,9 +147,8 @@ app.whenReady().then(() => {
      * forward full-screen image stream to UI
      */
     socket.on('full-stream', (data) => {
+      if (!ensureRegistered('full-stream')) return;
       const id = socket.id;
-      if (!captureClients[id]) return;
-
       sockLog.trace('full stream data received');
       const payload = { id, image: data.image };
       mainWindow.webContents.send('full-stream', payload);
@@ -146,9 +159,8 @@ app.whenReady().then(() => {
      * forward preview image stream to UI
      */
     socket.on('preview-stream', (data) => {
+      if (!ensureRegistered('preview-stream')) return;
       const id = socket.id;
-      if (!captureClients[id]) return;
-
       sockLog.trace('preview stream data received');
       const payload = { id, image: data.image };
       mainWindow.webContents.send('preview-stream', payload);
@@ -159,11 +171,10 @@ app.whenReady().then(() => {
      * receive heartbeat from capture client
      */
     socket.on('heartbeat', () => {
+      if (!ensureRegistered('heartbeat')) return;
       const id = socket.id;
-      if (heartbeats[id] !== undefined) {
-        heartbeats[id] = Date.now();
-        sockLog.debug('heartbeat timestamp updated');
-      }
+      heartbeats[id] = Date.now();
+      sockLog.debug('heartbeat timestamp updated');
     });
 
     /**

@@ -1,75 +1,40 @@
-/**
- * client-stream-manager.js
- *
- * manages user connections, previews, and fullscreen streams
- * via socket.io and updates the UI accordingly
- */
-
+// simple logger implementation using styled console methods
 const logger = {
-  /**
-   * log informational messages
-   * @param  {...any} args - data to log
-   */
   info: (...args) => console.info('%c[INFO]', 'color:#4CAF50;font-weight:bold;', ...args),
-
-  /**
-   * log warning messages
-   * @param  {...any} args - data to log
-   */
   warn: (...args) => console.warn('%c[WARN]', 'color:#FFC107;font-weight:bold;', ...args),
-
-  /**
-   * log error messages
-   * @param  {...any} args - data to log
-   */
   error: (...args) => console.error('%c[ERROR]', 'color:#F44336;font-weight:bold;', ...args),
-
-  /**
-   * log debug messages
-   * @param  {...any} args - data to log
-   */
   debug: (...args) => console.debug('%c[DEBUG]', 'color:#9C27B0;font-weight:bold;', ...args),
-
-  /**
-   * general-purpose log
-   * @param  {...any} args - data to log
-   */
   log: (...args) => console.log('%c[LOG]', 'color:#2196F3;', ...args)
 };
 
 const SERVER_URL = 'http://localhost:3000';
 logger.info('connecting to server at', SERVER_URL);
 
-// initialize socket connection\const socket = io(SERVER_URL);
+const socket = io(SERVER_URL);
 
-// application state (retained across resets)
+// application state kept across resets
 let users = {};
 let selectedUserId = null;
 
 // —————— SOCKET EVENTS ——————
 
-/**
- * on socket connection, request full user list
- */
 socket.on('connect', () => {
   logger.info('socket connected', socket.id);
+  // request full user list on initial connection
   socket.emit('get-users');
 });
 
-/**
- * log disconnection reason
- * @param {string} reason
- */
 socket.on('disconnect', reason => {
   logger.warn('socket disconnected:', reason);
 });
 
 /**
- * handle full user snapshot
- * @param {Array<Object>} list - array of user data
+ * handles incoming full user list snapshot
+ * @param {Array} list - array of user data objects
  */
 socket.on('user-list', list => {
   logger.info('event: user-list', list);
+  // merge each user into local state
   list.forEach(data => {
     const { id, username, displays = [] } = data;
     if (!users[id]) {
@@ -79,20 +44,17 @@ socket.on('user-list', list => {
       users[id].displays = displays;
     }
   });
+  // re-render UI from updated state
   renderAllUsersUI();
 });
 
 /**
- * add or update a single user
- * @param {Object} data
- * @param {string} data.id
- * @param {string} data.username
- * @param {Array} data.displays
+ * handles a single user registration or update
+ * @param {Object} data - user data object
  */
 socket.on('user-registered', data => {
   logger.info('event: user-registered', data);
   const { id, username, displays = [] } = data;
-
   users[id] = {
     ...users[id],
     username,
@@ -100,26 +62,26 @@ socket.on('user-registered', data => {
     previewUrl: users[id]?.previewUrl ?? null,
     fullStreamUrl: users[id]?.fullStreamUrl ?? null
   };
-
   addUserToList(id);
 });
 
 /**
- * remove disconnected user and cleanup resources
- * @param {{ id: string }} param0
+ * handles user disconnection cleanup
+ * @param {Object} payload
+ * @param {string} payload.id - id of disconnected user
  */
 socket.on('user-disconnected', ({ id }) => {
   logger.warn('event: user-disconnected', id);
   removeUserFromList(id);
-
+  // revoke blob URLs to free memory
   if (users[id]?.previewUrl) URL.revokeObjectURL(users[id].previewUrl);
   if (users[id]?.fullStreamUrl) URL.revokeObjectURL(users[id].fullStreamUrl);
   delete users[id];
 });
 
 /**
- * update the preview image for a user
- * @param {{ id: string, image: Uint8Array }} param0
+ * updates preview image for a user
+ * @param {{id: string, image: ArrayBuffer}} payload
  */
 socket.on('preview-stream', ({ id, image }) => {
   if (!users[id]) return;
@@ -130,32 +92,31 @@ socket.on('preview-stream', ({ id, image }) => {
 });
 
 /**
- * update the full stream image when active user matches
- * @param {{ id: string, image: Uint8Array }} param0
+ * displays full-resolution stream for selected user
+ * @param {{id: string, image: ArrayBuffer}} payload
  */
 socket.on('full-stream', ({ id, image }) => {
   if (selectedUserId !== id || !users[id]) return;
   if (users[id].fullStreamUrl) URL.revokeObjectURL(users[id].fullStreamUrl);
   const blob = new Blob([image], { type: 'image/jpeg' });
   users[id].fullStreamUrl = URL.createObjectURL(blob);
-
-  const imgEl = document.getElementById('stream');
-  imgEl.src = users[id].fullStreamUrl;
+  const img = document.getElementById('stream');
+  img.src = users[id].fullStreamUrl;
   document.getElementById('loading').style.display = 'none';
 });
 
-// —————— UI RENDER HELPERS ——————
+// —————— RENDER HELPERS ——————
 
 /**
- * clear DOM and re-render all users
+ * re-renders UI for all users from state
  */
 function renderAllUsersUI() {
   clearUIOnly();
-  Object.keys(users).forEach(addUserToList);
+  Object.keys(users).forEach(id => addUserToList(id));
 }
 
 /**
- * clear UI elements but retain state
+ * clears only the DOM elements (not state) and resets stream view
  */
 function clearUIOnly() {
   selectedUserId = null;
@@ -163,17 +124,19 @@ function clearUIOnly() {
   const streamEl = document.getElementById('stream');
   streamEl.src = '';
   document.getElementById('stream-container').classList.remove('active');
-  streamEl.style.display = 'none';
+  document.getElementById('stream').style.display = 'none';
 }
 
 /**
- * create or update a user card in the UI
- * @param {string} id
+ * adds or updates a single user entry in the UI
+ * @param {string} id - user id
  */
 function addUserToList(id) {
   const { username, displays, previewUrl } = users[id];
+  console.log(users[id]);
   const panel = document.getElementById('user-panel');
 
+  // remove existing entry to re-insert fresh
   const existing = document.getElementById('user-' + id);
   if (existing) existing.remove();
 
@@ -185,19 +148,20 @@ function addUserToList(id) {
   nameEl.className = 'user-name';
   nameEl.textContent = username;
 
-  const previewImg = document.createElement('img');
-  previewImg.className = 'user-preview';
-  if (previewUrl) previewImg.src = previewUrl;
+  const preview = document.createElement('img');
+  preview.className = 'user-preview';
+  if (previewUrl) preview.src = previewUrl;
 
-  item.append(nameEl, previewImg);
+  item.append(nameEl, preview);
 
+  // add monitor selector if multiple displays
   if (Array.isArray(displays) && displays.length > 1) {
     const sel = document.createElement('select');
     sel.className = 'monitor-selector';
     displays.forEach((_, i) => {
       const opt = document.createElement('option');
       opt.value = i;
-      opt.textContent = 'Monitor ' + (i + 1);
+      opt.textContent = 'monitor ' + (i + 1);
       sel.append(opt);
     });
     item.append(sel);
@@ -205,7 +169,7 @@ function addUserToList(id) {
 
   const fsBtn = document.createElement('button');
   fsBtn.className = 'full-screen-button';
-  fsBtn.textContent = 'Full Screen';
+  fsBtn.textContent = 'full screen';
   fsBtn.addEventListener('click', () => openFullScreen(id));
   item.append(fsBtn);
 
@@ -213,36 +177,35 @@ function addUserToList(id) {
 }
 
 /**
- * update only the preview image element for a user
- * @param {string} id
+ * updates only the preview <img> src for a given user
+ * @param {string} id - user id
  */
 function updateUserPreview(id) {
   const item = document.getElementById('user-' + id);
   if (!item) return;
-  const imgEl = item.querySelector('.user-preview');
-  imgEl.src = users[id].previewUrl;
+  const img = item.querySelector('.user-preview');
+  img.src = users[id].previewUrl;
 }
 
 /**
- * remove user card and teardown if active
- * @param {string} id
+ * removes a user entry from the UI
+ * @param {string} id - user id
  */
 function removeUserFromList(id) {
   const el = document.getElementById('user-' + id);
   if (el) el.remove();
   if (selectedUserId === id) {
-    const streamEl = document.getElementById('stream');
-    streamEl.src = '';
+    document.getElementById('stream').src = '';
     document.getElementById('stream-container').classList.remove('active');
     selectedUserId = null;
   }
 }
 
-// —————— FULLSCREEN HANDLERS ——————
+// —————— FULLSCREEN & DISCONNECT ——————
 
 /**
- * request and display fullscreen stream for a user
- * @param {string} id
+ * opens full-screen view for a user and requests stream
+ * @param {string} id - user id
  */
 function openFullScreen(id) {
   const container = document.getElementById('stream-container');
@@ -253,30 +216,29 @@ function openFullScreen(id) {
   const item = document.getElementById('user-' + id);
   const sel = item.querySelector('.monitor-selector');
   socket.volatile.emit('request-fullscreen', { id, monitor: sel?.value ?? null });
-
   container.classList.add('active');
   document.getElementById('stream').style.display = 'block';
 
+  // add a disconnect button if not already present
   if (!item.querySelector('.disconnect-button')) {
     const dBtn = document.createElement('button');
     dBtn.className = 'disconnect-button';
-    dBtn.textContent = 'Disconnect';
+    dBtn.textContent = 'disconnect';
     dBtn.addEventListener('click', () => teardownStreamFor(id, dBtn));
     item.append(dBtn);
   }
 }
 
 /**
- * teardown active stream and cleanup resources
- * @param {string} id
- * @param {HTMLElement} btn - the disconnect button element
+ * tears down full-screen stream and cleans up resources
+ * @param {string} id - user id
+ * @param {HTMLElement} btn - button that triggered teardown
  */
 function teardownStreamFor(id, btn) {
   if (selectedUserId === id) {
-    const streamEl = document.getElementById('stream');
-    streamEl.src = '';
+    document.getElementById('stream').src = '';
     document.getElementById('stream-container').classList.remove('active');
-    streamEl.style.display = 'none';
+    document.getElementById('stream').style.display = 'none';
     selectedUserId = null;
   }
   if (users[id]?.fullStreamUrl) URL.revokeObjectURL(users[id].fullStreamUrl);
@@ -284,10 +246,10 @@ function teardownStreamFor(id, btn) {
   btn.remove();
 }
 
-// —————— RESET & ERROR HANDLERS ——————
+// —————— RESET BUTTON & ERROR HANDLERS ——————
 
 /**
- * clear UI and re-render all users
+ * resets application state and re-renders UI
  */
 function resetApp() {
   logger.warn('resetting application state');
@@ -295,10 +257,10 @@ function resetApp() {
   renderAllUsersUI();
 }
 
-// attach reset button listener
-document.getElementById('reset-button').addEventListener('click', resetApp);
+document.getElementById('reset-button')
+  .addEventListener('click', resetApp);
 
-// global error handlers
+// catch uncaught exceptions and promise rejections, then reset
 window.addEventListener('error', e => {
   logger.error('uncaught exception:', e);
   resetApp();

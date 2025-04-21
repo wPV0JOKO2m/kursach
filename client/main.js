@@ -1,5 +1,4 @@
 /**
- * clientMain.js
  *
  * initializes the Electron renderer process UI for the screen client,
  * manages the BrowserWindow, system tray icon, and IPC event handlers

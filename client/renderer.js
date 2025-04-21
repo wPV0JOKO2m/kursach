@@ -1,5 +1,4 @@
 /**
- * connectForm.js
  *
  * handles the connection form UI: validates inputs and initiates the client connection
  */

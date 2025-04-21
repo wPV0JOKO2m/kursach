@@ -1,10 +1,3 @@
-/**
- * clientMain.js
- *
- * handles capturing desktop screenshots, streaming preview and full-resolution images,
- * maintains heartbeat signals, and communicates with the Socket.IO server.
- */
-
 const pino = require('pino');
 const screenshot = require('screenshot-desktop');
 const { io } = require('socket.io-client');
@@ -14,41 +7,49 @@ const logger = pino({
   transport: {
     target: 'pino-pretty',
     options: {
-      colorize: true,            // enable ANSI color
-      translateTime: 'yyyy-mm-dd HH:MM:ss.l o', // human-readable timestamp
-      ignore: 'pid,hostname'     // omit extraneous fields
+      colorize: true,               // enable colored output for readability
+      translateTime: 'yyyy-mm-dd HH:MM:ss.l o', // include timestamp with timezone offset
+      ignore: 'pid,hostname'        // omit process id and hostname from logs
     }
   }
 });
 
 // --- Constants ---
-const SCREENSHOT_INTERVAL = 300;      // ms between full-res captures
-const PREVIEW_INTERVAL    = 5000;     // ms between preview captures
-const FULL_FORMAT         = 'jpeg';   // full-res image format
-const FULL_QUALITY        = 25;       // jpeg quality (0-100)
-const PREVIEW_FORMAT      = 'png';    // preview image format
-const PREVIEW_QUALITY     = 30;       // png compression level
-const HEARTBEAT_INTERVAL  = 5000;     // ms between heartbeat events
+// interval between full-resolution screenshots in milliseconds
+const SCREENSHOT_INTERVAL = 300;
+// interval between low-resolution preview screenshots in milliseconds
+const PREVIEW_INTERVAL    = 5000;
+// encoding format for full screenshots
+const FULL_FORMAT         = 'jpeg';
+// quality setting (0–100) for full screenshots
+const FULL_QUALITY        = 25;
+// encoding format for preview screenshots
+const PREVIEW_FORMAT      = 'png';
+// quality setting (0–100) for preview screenshots
+const PREVIEW_QUALITY     = 30;
+// interval for sending heartbeat events to server in milliseconds
+const HEARTBEAT_INTERVAL  = 5000;
+// name of the heartbeat event sent over socket
 const HEARTBEAT_EVENT     = 'heartbeat';
 
+// options for socket.io client connection
 const SOCKET_OPTIONS = {
-  transports: ['polling', 'websocket'], // fallback to polling
-  pingInterval: 10000,
-  pingTimeout: 20000,
-  reconnection: true,
-  reconnectionAttempts: Infinity,
-  reconnectionDelay: 2000
+  transports: ['polling', 'websocket'], // fallback transports for reliability
+  pingInterval: 10000,                  // how often to send ping packets
+  pingTimeout: 20000,                   // time to wait for a ping response
+  reconnection: true,                   // enable automatic reconnection
+  reconnectionAttempts: Infinity,       // keep trying to reconnect indefinitely
+  reconnectionDelay: 2000               // wait this long between reconnection attempts
 };
 
-// --- State Variables ---
 let socket;
-let currentMonitor = 0;               // index of selected screen
-let availableDisplays = [];           // array of display identifiers
-let status = { connected: false, monitor: 0 };
+let currentMonitor = 0;                  // index of the monitor currently being captured
+let availableDisplays = [];              // list of detected displays
+let status = { connected: false, monitor: 0 }; // client connection and monitor status
 
 /**
- * retrieve current connection status and monitor index
- * @returns {{ connected: boolean, monitor: number }}
+ * retrieves the current connection status and monitor index
+ * @returns {{connected: boolean, monitor: number}} current status object
  */
 function getStatus() {
   logger.debug('getStatus called', status);
@@ -56,8 +57,11 @@ function getStatus() {
 }
 
 /**
- * initialize client connection to server
- * @param {{ ip: string, port: number|string, nickname: string }} config
+ * starts the screenshot streaming client
+ * @param {Object} options
+ * @param {string} options.ip - server IP address
+ * @param {number|string} options.port - server port
+ * @param {string} options.nickname - username for registration
  */
 function startClient({ ip, port, nickname }) {
   const SERVER_URL = `http://${ip}:${port}`;
@@ -66,21 +70,19 @@ function startClient({ ip, port, nickname }) {
 }
 
 /**
- * establish Socket.IO connection and set up event handlers
- * @param {string} serverUrl - full server URL
- * @param {string} nickname - user-provided name
+ * establishes socket connection and sets up event handlers
+ * @param {string} serverUrl - URL of the socket server
+ * @param {string} nickname - username for registration event
  */
 function connectSocket(serverUrl, nickname) {
   socket = io(serverUrl, SOCKET_OPTIONS);
 
   /**
-   * perform initial handshake: register and send display list
+   * performs initial handshake: registers user and sends display list
    */
   async function handshake() {
     try {
-      // register with server
       socket.emit('register', { username: nickname });
-      // list available screens
       availableDisplays = await screenshot.listDisplays();
       logger.info({ count: availableDisplays.length }, 'found displays');
       socket.emit('displays', { displays: availableDisplays });
@@ -89,14 +91,13 @@ function connectSocket(serverUrl, nickname) {
     }
   }
 
-  // on initial connection
   socket.on('connect', () => {
     status.connected = true;
     status.monitor = currentMonitor;
     logger.info({ socketId: socket.id }, 'socket connected');
     handshake();
 
-    // start heartbeat pings
+    // send heartbeat at regular intervals to keep connection alive
     setInterval(() => {
       if (socket.connected) {
         logger.debug('sending heartbeat');
@@ -104,11 +105,14 @@ function connectSocket(serverUrl, nickname) {
       }
     }, HEARTBEAT_INTERVAL);
 
-    // start image streaming loops
     beginStreaming();
   });
 
-  // re-register on reconnection
+  socket.on('request-register', () => {
+    logger.warn('server requested re-register');
+    handshake();
+  });
+
   socket.on('reconnect', attempt => {
     logger.info({ attempt }, 'reconnected, performing handshake');
     status.connected = true;
@@ -130,41 +134,30 @@ function connectSocket(serverUrl, nickname) {
 }
 
 /**
- * start repeating screenshot capture and emit streams
+ * begins capturing and streaming screenshots at defined intervals
  */
 function beginStreaming() {
-  // full-resolution stream
+  // stream full-resolution screenshots
   setInterval(() => {
-    if (!socket.connected) {
-      logger.debug('skipping full-stream; disconnected');
-      return;
-    }
+    if (!socket.connected) return;
     screenshot({ screen: currentMonitor, format: FULL_FORMAT, quality: FULL_QUALITY })
       .then(buf => {
         logger.debug({ monitor: currentMonitor, size: buf.length }, 'captured full screenshot');
         socket.volatile.emit('full-stream', { image: buf, monitor: currentMonitor });
       })
-      .catch(err => {
-        logger.error({ err }, 'error capturing full screenshot');
-      });
+      .catch(err => logger.error({ err }, 'error capturing full screenshot'));
   }, SCREENSHOT_INTERVAL);
 
-  // lower-resolution preview stream
+  // stream low-resolution preview screenshots
   setInterval(() => {
-    if (!socket.connected) {
-      logger.debug('skipping preview-stream; disconnected');
-      return;
-    }
+    if (!socket.connected) return;
     screenshot({ format: PREVIEW_FORMAT, quality: PREVIEW_QUALITY })
       .then(buf => {
         logger.debug({ size: buf.length }, 'captured preview screenshot');
         socket.volatile.emit('preview-stream', { image: buf });
       })
-      .catch(err => {
-        logger.error({ err }, 'error capturing preview screenshot');
-      });
+      .catch(err => logger.error({ err }, 'error capturing preview screenshot'));
   }, PREVIEW_INTERVAL);
 }
 
-// export public API
-typeof module !== 'undefined' && (module.exports = { startClient, getStatus });
+module.exports = { startClient, getStatus };
